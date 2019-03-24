@@ -1,0 +1,11 @@
+statement   := END | expr END
+expr      	:= term expr_tail
+expr_tail 	:= ADD_SUB_AND_OR_XOR term expr_tail | NiL
+term      	:= factor term_tail
+term_tail 	:= MUL_DIV factor term_tail|NiL
+factor    	:= INT | 
+               ADD_SUB INT | 
+               ADD_SUB ID | 
+               ID ASSIGN expr| 
+               ID | 
+               LPAREN expr RPAREN
