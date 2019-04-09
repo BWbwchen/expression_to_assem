@@ -13,7 +13,7 @@ TokenSet getToken(void)
     int i;
     char c;
 
-    while ( (c = fgetc(stdin)) == ' ' || c== '\t' );  // �����ťզr��
+    while ( (c = fgetc(stdin)) == ' ' || c== '\t' );  
 
     if (isdigit(c)) {
         lexeme[0] = c;
@@ -35,6 +35,15 @@ TokenSet getToken(void)
         lexeme[0] = c;
         lexeme[1] = '\0';
         return MULDIV;
+    } else if (c == '&' || c == '^' || c == '|') {
+        lexeme[0] = c;
+        lexeme[1] = '\0';
+        /*
+        if (c == '&') return AND;
+        else if (c == '^') return XOR;
+        else if (c == '|') return OR;
+        */
+       return AND_XOR_OR;    
     } else if (c == '\n') {
         lexeme[0] = '\0';
         return END;
@@ -68,7 +77,7 @@ void Next(void)
 {
     lookahead = getToken();
 }
-
+//does token match the lookahead ?
 int match(TokenSet token)
 {
     if (lookahead == UNKNOWN) Next();

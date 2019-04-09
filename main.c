@@ -25,6 +25,7 @@ typedef struct _Node {
 } BTNode;
 
 void statement(void);
+BTNode* overall(void);
 BTNode* expr(void);
 BTNode* term(void);
 BTNode* factor(void);
@@ -46,7 +47,7 @@ void error(ErrorType errorNum);
 int main ()
 {
     while (1) {
-        printf(">> ");
+        //printf(">> ");
         statement();
     }
     return 0;
@@ -72,7 +73,10 @@ void printPrefix(BTNode *root)
 	}
 }
 
-/* create a node without any child */
+/* 
+	create a node without any child 
+	the string in the node is based on lexe 
+*/
 BTNode* makeNode(TokenSet tok, const char *lexe)
 {
 	BTNode *node = (BTNode*) malloc(sizeof(BTNode));
@@ -83,19 +87,39 @@ BTNode* makeNode(TokenSet tok, const char *lexe)
 	node->right = NULL;
 	return node;
 }
+// deal of precendence
+// need to deal with & > ^ > |
+BTNode* overall (void)
+{
+	BTNode *retp, *left;
+	retp = left = expr();
+	while (match(AND_XOR_OR)) { // tail recursion => while
+		
+		retp = makeNode(AND_XOR_OR, getLexeme());
+		Next();
+		retp->right = expr();
+		retp->left = left;
+		left = retp;
+		
+	}
+	return retp;
+
+}
 
 //  expr        := term expr_tail
-//  expr_tail   := ADDSUB term expr_tail | NIL
+//  expr_tail   := ADD_SUB_AND_OR_XOR term expr_tail | NIL
 BTNode* expr(void)
 {
 	BTNode *retp, *left;
 	retp = left = term();
-	while (match(ADDSUB)) { // tail recursion => while
+	while (match(ADDSUB) || match(AND_XOR_OR)) { // tail recursion => while
+		
 		retp = makeNode(ADDSUB, getLexeme());
 		Next();
 		retp->right = term();
 		retp->left = left;
 		left = retp;
+		
 	}
 	return retp;
 }
@@ -188,16 +212,16 @@ void error(ErrorType errorNum)
 	}
 	exit(0);
 }
-
-void statement(void)
+// statement:= END | expr END
+void statement (void)
 {
 	BTNode* retp;
-
+	
 	if (match(END)) {
 		printf(">> ");
 		Next();
 	} else {
-		retp = expr();
+		retp = overall();
 		if (match(END)) {
 			//printf("%d\n", evaluateTree(retp));
 			printPrefix(retp);

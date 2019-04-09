@@ -10,6 +10,9 @@ typedef enum
     MULDIV,
     ADDSUB,
     AND_XOR_OR, 
+    AND,
+    XOR,
+    OR, 
     ASSIGN,
     LPAREN, 
     RPAREN
