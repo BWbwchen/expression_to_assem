@@ -68,6 +68,8 @@ TokenSet getToken(void)
         ungetc(c, stdin);
         lexeme[i] = '\0';
         return ID;
+    } else if (c == EOF) {
+        return END_OF_INPUT;
     } else {
         return UNKNOWN;
     }

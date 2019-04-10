@@ -15,7 +15,8 @@ typedef enum
     OR, 
     ASSIGN,
     LPAREN, 
-    RPAREN
+    RPAREN, 
+    END_OF_INPUT
 } TokenSet;
 
 extern int match (TokenSet token);

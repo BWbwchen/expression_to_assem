@@ -1,5 +1,6 @@
 #define DEBUG
 #define TBLSIZE 65535
+#define TOTALSTATEMENT 50
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -13,9 +14,11 @@ typedef struct {
     int val;
 } Symbol;
 
-Symbol table[TBLSIZE];
+Symbol table[TBLSIZE] ;
 
-int sbcount = 0;
+
+int DETECT_ASSIGN = 0;
+int sbcount = 3;
 
 typedef struct _Node {
     char lexeme[MAXLEN];
@@ -23,6 +26,9 @@ typedef struct _Node {
     int val;
     struct _Node *left, *right;
 } BTNode;
+
+BTNode* root_set[TOTALSTATEMENT] = {0};
+int total_root = 0;
 
 void statement(void);
 BTNode* overall(void);
@@ -41,15 +47,34 @@ void printPrefix(BTNode *root);
 typedef enum {MISPAREN, NOTNUMID, NOTFOUND, RUNOUT, NAN} ErrorType;
 void error(ErrorType errorNum);
 
+// call this function will print the assembly code
+// based on the syntax tree
+void assemble_tree(BTNode* now_root);
 
 
 
 int main ()
 {
-    while (1) {
+	#ifdef DEBUG
+	freopen ("text.in", "r", stdin);
+	#endif
+	//make x, y, z space
+	for (int i = 0; i < 3; ++i) {
+		Symbol temp;
+		table[i] = temp;
+		if (i == 0) strcpy(table[i].name, "x");
+		else if (i == 1) strcpy(table[i].name, "y");
+		else if (i == 2) strcpy(table[i].name, "z");
+		table[i].val = 0;
+		//printf("initial ; %s %d", table[i].name, table[i].val);
+	}
+    while (!match(END_OF_INPUT)) {
         //printf(">> ");
         statement();
+		DETECT_ASSIGN = 0;
     }
+	//printf("success parsing!\n");
+	//assemble_tree();
     return 0;
 }
 
@@ -112,7 +137,7 @@ BTNode* expr(void)
 {
 	BTNode *retp, *left;
 	retp = left = term();
-	while (match(ADDSUB) || match(AND_XOR_OR)) { // tail recursion => while
+	while (match(ADDSUB)) { // tail recursion => while
 		
 		retp = makeNode(ADDSUB, getLexeme());
 		Next();
@@ -152,9 +177,11 @@ BTNode* factor(void)
 	} else if (match(ID)) {
 		BTNode* left = makeNode(ID, getLexeme());
 		left->val = getval();
+		//if (left->val == MISS && DETECT_ASSIGN) error(NOTFOUND);
 		strcpy(tmpstr, getLexeme());
 		Next();
 		if (match(ASSIGN)) {
+			DETECT_ASSIGN = 1;
 			retp = makeNode(ASSIGN, getLexeme());
 			Next();
 			retp->right = expr();
@@ -252,7 +279,8 @@ int getval(void)
                 i++;
             }
         }
-        if (!found) {
+        if (!found ) {
+			if (DETECT_ASSIGN) error(NOTFOUND);
             if (sbcount < TBLSIZE) {
                 strcpy(table[sbcount].name, getLexeme());
                 table[sbcount].val = 0;
@@ -279,4 +307,9 @@ int setval(char *str, int val)
         }
     }
     return retval;
+}
+
+void assemble_tree(BTNode* now_root)
+{
+
 }
