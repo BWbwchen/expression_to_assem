@@ -1,4 +1,4 @@
-#define DEBUG
+//#define DEBUG
 #define TBLSIZE 65535
 #define TOTALSTATEMENT 50
 
@@ -17,7 +17,7 @@ typedef struct {
 Symbol table[TBLSIZE] ;
 
 
-int DETECT_ASSIGN = 0;
+int ASSIGN_NUMBER = 0;
 int sbcount = 3;
 
 typedef struct _Node {
@@ -44,7 +44,7 @@ int setval(char*, int);
 void freeTree(BTNode *root);
 void printPrefix(BTNode *root);
 
-typedef enum {MISPAREN, NOTNUMID, NOTFOUND, RUNOUT, NAN} ErrorType;
+typedef enum {MISPAREN, NOTNUMID, NOTFOUND, RUNOUT, NAN, PRESENT_ERROR} ErrorType;
 void error(ErrorType errorNum);
 
 // call this function will print the assembly code
@@ -71,7 +71,7 @@ int main ()
     while (!match(END_OF_INPUT)) {
         //printf(">> ");
         statement();
-		DETECT_ASSIGN = 0;
+		ASSIGN_NUMBER = 0;
     }
 	//printf("success parsing!\n");
 	//assemble_tree();
@@ -127,6 +127,7 @@ BTNode* overall (void)
 		left = retp;
 		
 	}
+	if (match(UNKNOWN)) error(PRESENT_ERROR);
 	return retp;
 
 }
@@ -146,6 +147,7 @@ BTNode* expr(void)
 		left = retp;
 		
 	}
+	if (match(UNKNOWN)) error(PRESENT_ERROR);
 	return retp;
 }
 
@@ -162,6 +164,7 @@ BTNode* term(void)
 		retp->left = left;
 		left = retp;
 	}
+	if (match(UNKNOWN)) error(PRESENT_ERROR);
 	return retp;
 }
 
@@ -177,16 +180,18 @@ BTNode* factor(void)
 	} else if (match(ID)) {
 		BTNode* left = makeNode(ID, getLexeme());
 		left->val = getval();
-		//if (left->val == MISS && DETECT_ASSIGN) error(NOTFOUND);
+		//if (left->val == MISS && ASSIGN_NUMBER) error(NOTFOUND);
 		strcpy(tmpstr, getLexeme());
 		Next();
+		ASSIGN_NUMBER++;
 		if (match(ASSIGN)) {
-			DETECT_ASSIGN = 1;
+			if (ASSIGN_NUMBER > 1) error(PRESENT_ERROR);
 			retp = makeNode(ASSIGN, getLexeme());
 			Next();
 			retp->right = expr();
 			retp->left = left;
 		} else {
+			if (ASSIGN_NUMBER) error(PRESENT_ERROR);
 			retp = left;
 		}
 	} else if (match(ADDSUB)) {
@@ -236,6 +241,9 @@ void error(ErrorType errorNum)
 		break;
 	case NAN:
 		fprintf(stderr, "Not a number\n");
+		break;
+	case PRESENT_ERROR:
+		fprintf(stderr, "Present error\n");
 	}
 	exit(0);
 }
@@ -280,7 +288,7 @@ int getval(void)
             }
         }
         if (!found ) {
-			if (DETECT_ASSIGN) error(NOTFOUND);
+			if (ASSIGN_NUMBER) error(NOTFOUND);
             if (sbcount < TBLSIZE) {
                 strcpy(table[sbcount].name, getLexeme());
                 table[sbcount].val = 0;

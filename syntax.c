@@ -4,7 +4,7 @@
 #include "syntax.h"
 
 static TokenSet getToken(void);
-static TokenSet lookahead = UNKNOWN;
+static TokenSet lookahead = BEGIN;
 static char lexeme[MAXLEN];
 
 
@@ -56,11 +56,11 @@ TokenSet getToken(void)
     } else if (c == ')') {
         strcpy(lexeme, ")");
         return RPAREN;
-    } else if (isalpha(c) || c == '_') {
+    } else if (isalpha(c)) {
         lexeme[0] = c;
         c = fgetc(stdin);
         i = 1;
-        while (isalpha(c) || isdigit(c) || c == '_') {
+        while (isalpha(c)) {
             lexeme[i] = c;
             ++i;
             c = fgetc(stdin);
@@ -82,7 +82,7 @@ void Next(void)
 //does token match the lookahead ?
 int match(TokenSet token)
 {
-    if (lookahead == UNKNOWN) Next();
+    if (lookahead == BEGIN) Next();
     return token == lookahead;
 }
 

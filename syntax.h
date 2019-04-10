@@ -3,6 +3,7 @@
 #define MAXLEN 256
 typedef enum 
 {
+    BEGIN, 
     UNKNOWN, 
     END, 
     INT, 
