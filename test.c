@@ -6,13 +6,126 @@
 #define LEFT 5
 #define RIGHT 6
 #define ROOT 8
+#define MAXLEN 256
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
-#include "syntax.h"
 
+typedef enum 
+{
+    BEGIN, 
+    UNKNOWN, 
+    END, 
+    INT, 
+    ID,  
+    MULDIV,
+    ADDSUB,
+    AND_XOR_OR, 
+    AND,
+    XOR,
+    OR, 
+    ASSIGN,
+    LPAREN, 
+    RPAREN, 
+    END_OF_INPUT
+} TokenSet;
+
+int match (TokenSet token);
+void Next(void);
+char* getLexeme(void);
+
+
+TokenSet getToken(void);
+TokenSet lookahead = BEGIN;
+char lexeme[MAXLEN];
+
+
+TokenSet getToken(void)
+{
+    int i;
+    char c;
+
+    while ( (c = fgetc(stdin)) == ' ' || c == '\t' );  
+
+    if (isdigit(c)) {
+        lexeme[0] = c;
+        c = fgetc(stdin);
+        i = 1;
+        while (isdigit(c) && i<MAXLEN) {
+            lexeme[i] = c;
+            ++i;
+            c = fgetc(stdin);
+        }
+        ungetc(c, stdin);
+        lexeme[i] = '\0';
+        return INT;
+    } else if (c == '+' || c == '-') {
+        lexeme[0] = c;
+        lexeme[1] = '\0';
+        return ADDSUB;
+    } else if (c == '*' || c == '/') {
+        lexeme[0] = c;
+        lexeme[1] = '\0';
+        return MULDIV;
+    } else if (c == '&' || c == '^' || c == '|') {
+        lexeme[0] = c;
+        lexeme[1] = '\0';
+        
+        if (c == '&') return AND;
+        else if (c == '^') return XOR;
+        else if (c == '|') return OR;
+    
+        //return AND_XOR_OR;    
+    } else if (c == '\n') {
+        lexeme[0] = '\0';
+        //printf("END\n");
+        return END;
+    } else if (c == '=') {
+        strcpy(lexeme, "=");
+        return ASSIGN;
+    } else if (c == '(') {
+        strcpy(lexeme, "(");
+        return LPAREN;
+    } else if (c == ')') {
+        strcpy(lexeme, ")");
+        return RPAREN;
+    } else if (isalpha(c)) {
+        lexeme[0] = c;
+        c = fgetc(stdin);
+        i = 1;
+        while (isalpha(c)) {
+            lexeme[i] = c;
+            ++i;
+            c = fgetc(stdin);
+        }
+        ungetc(c, stdin);
+        lexeme[i] = '\0';
+        return ID;
+    } else if (c == EOF) {
+        //printf("EOF\n");
+        return END_OF_INPUT;
+    } else {
+        return UNKNOWN;
+    }
+}
+
+void Next(void)
+{
+    lookahead = getToken();
+}
+//does token match the lookahead ?
+int match(TokenSet token)
+{
+    if (lookahead == BEGIN) Next();
+    return token == lookahead;
+}
+
+char* getLexeme(void)
+{
+    return lexeme;
+}
 
 typedef struct {
     char name[MAXLEN];
@@ -33,6 +146,7 @@ typedef struct _Node {
 } BTNode;
 
 BTNode* root_set[TOTALSTATEMENT] = {0};
+BTNode* main_tree = NULL;
 int total_root = 0;
 
 void statement(void);
@@ -73,7 +187,7 @@ int main ()
 	#endif
 	//initial 
 	//make x, y, z space
-	for (int i = 0; i < 3; ++i) {
+	for (int i = 0; i < sbcount; ++i) {
 		if (i == 0) strcpy(table[i].name, "x");
 		else if (i == 1) strcpy(table[i].name, "y");
 		else if (i == 2) strcpy(table[i].name, "z");
@@ -85,6 +199,15 @@ int main ()
 		reg[i].data = 0;
 		reg[i].can_use = OK;
 	}
+/*
+	while (!match(END_OF_INPUT)) {
+        //printf(">> ");
+        statement();
+		ASSIGN_NUMBER = 0;
+		Make_assem(main_tree, ROOT, NULL);
+		freeTree(main_tree);
+    }
+*/
 
     while (!match(END_OF_INPUT)) {
         //printf(">> ");
@@ -97,7 +220,8 @@ int main ()
 		Make_assem(root_set[i], ROOT, NULL);
 		freeTree(root_set[i]);
 	}
-	printf("MOV r0 [0]\nMOV r1 [4]\nMOV r2 [8]\n");
+
+    printf("MOV r0 [0]\nMOV r1 [4]\nMOV r2 [8]\n");
 	printf("EXIT 0\n");
     return 0;
 }
@@ -274,6 +398,8 @@ BTNode* factor(void)
 			error(MISPAREN);
 		}
 	} else {
+		
+		//printf("here!\n %s \n", getLexeme());
 		error(NOTNUMID);
 	}
 	return retp;
@@ -281,6 +407,7 @@ BTNode* factor(void)
 
 void error(ErrorType errorNum)
 {
+
 	printf("EXIT 1\n");
 	exit(0);
 
@@ -318,9 +445,12 @@ void statement (void)
 		if (match(END) || match(END_OF_INPUT)) {
 			//printf("%d\n", evaluateTree(retp));
 			static int id = 0;
-			printPrefix(retp);
-			printf("\n");
+			//printPrefix(retp);
+			//printf("\n");
+
 			root_set[id++] = retp;
+			//main_tree = retp;
+			
 			//freeTree(retp);
 
 			//printf(">> ");
@@ -361,6 +491,22 @@ int getval(void)
     return retval;
 }
 
+int setval(char *str, int val)
+{
+    int i, retval;
+    i = 0;
+    while (i<sbcount) {
+        if (strcmp(str, table[i].name)==0) {
+            table[i].val = val;
+            retval = val;
+            break;
+        } else {
+            i++;
+        }
+    }
+    return retval;
+}
+
 
 int OK_register (void )
 {
@@ -370,6 +516,8 @@ int OK_register (void )
 			return i;
 		}
 	}
+	printf("No more register!\n");
+	exit(1);
 }
 
 int ID_index (char name[])
