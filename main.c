@@ -1,6 +1,11 @@
-//#define DEBUG
-#define TBLSIZE 65535
+#define DEBUG
+#define TBLSIZE 64
 #define TOTALSTATEMENT 50
+#define OK 100
+#define NO 99
+#define LEFT 5
+#define RIGHT 6
+#define ROOT 8
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -47,9 +52,15 @@ void printPrefix(BTNode *root);
 typedef enum {MISPAREN, NOTNUMID, NOTFOUND, RUNOUT, NAN, PRESENT_ERROR} ErrorType;
 void error(ErrorType errorNum);
 
-// call this function will print the assembly code
-// based on the syntax tree
-void assemble_tree(BTNode* now_root);
+void Make_assem (BTNode* root, int type, int *id);
+typedef struct List
+{
+	int data;
+	int can_use;
+}Reg;
+Reg reg[8];
+int OK_register (void);
+int ID_index(char name[]);
 
 
 
@@ -58,23 +69,34 @@ int main ()
 	#ifdef DEBUG
 	freopen ("text.in", "r", stdin);
 	#endif
+	//initial 
 	//make x, y, z space
 	for (int i = 0; i < 3; ++i) {
-		Symbol temp;
-		table[i] = temp;
 		if (i == 0) strcpy(table[i].name, "x");
 		else if (i == 1) strcpy(table[i].name, "y");
 		else if (i == 2) strcpy(table[i].name, "z");
 		table[i].val = 0;
 		//printf("initial ; %s %d", table[i].name, table[i].val);
 	}
+	//initial reg
+	for (int i = 0; i < 7; ++i) {
+		reg[i].data = 0;
+		reg[i].can_use = OK;
+	}
+
     while (!match(END_OF_INPUT)) {
         //printf(">> ");
         statement();
 		ASSIGN_NUMBER = 0;
+		total_root++;
     }
-	//printf("success parsing!\n");
-	//assemble_tree();
+	//printf("success parsing! %d\n", total_root);
+	for (int i = 0; i < total_root; ++i) {
+		Make_assem(root_set[i], ROOT, NULL);
+		freeTree(root_set[i]);
+	}
+	printf("MOV r0 [0]\nMOV r1 [4]\nMOV r2 [8]\n");
+	printf("EXIT 0\n");
     return 0;
 }
 
@@ -118,14 +140,26 @@ BTNode* overall (void)
 {
 	BTNode *retp, *left;
 	retp = left = expr();
-	while (match(AND_XOR_OR)) { // tail recursion => while
-		
-		retp = makeNode(AND_XOR_OR, getLexeme());
+	while (match(OR)) { // tail recursion => while
+		retp = makeNode(OR, getLexeme());
 		Next();
 		retp->right = expr();
 		retp->left = left;
 		left = retp;
-		
+	}
+	while (match(XOR)) { // tail recursion => while
+		retp = makeNode(XOR, getLexeme());
+		Next();
+		retp->right = expr();
+		retp->left = left;
+		left = retp;
+	}
+	while (match(AND)) { // tail recursion => while
+		retp = makeNode(AND, getLexeme());
+		Next();
+		retp->right = expr();
+		retp->left = left;
+		left = retp;
 	}
 	if (match(UNKNOWN)) error(PRESENT_ERROR);
 	return retp;
@@ -185,13 +219,15 @@ BTNode* factor(void)
 		Next();
 		ASSIGN_NUMBER++;
 		if (match(ASSIGN)) {
+			//prevent double assign
 			if (ASSIGN_NUMBER > 1) error(PRESENT_ERROR);
 			retp = makeNode(ASSIGN, getLexeme());
 			Next();
-			retp->right = expr();
+			retp->right = overall();
 			retp->left = left;
 		} else {
-			if (ASSIGN_NUMBER) error(PRESENT_ERROR);
+			//printf("here\n");
+			//if (ASSIGN_NUMBER) error(PRESENT_ERROR);
 			retp = left;
 		}
 	} else if (match(ADDSUB)) {
@@ -212,7 +248,7 @@ BTNode* factor(void)
 		}
 	} else if (match(LPAREN)) {
 		Next();
-		retp = expr();
+		retp = overall();
 		if (match(RPAREN)) {
 			Next();
 		} else {
@@ -226,6 +262,10 @@ BTNode* factor(void)
 
 void error(ErrorType errorNum)
 {
+	printf("EXIT 1\n");
+	exit(1);
+	return;
+
 	switch (errorNum) {
 	case MISPAREN:
 		fprintf(stderr, "Mismatched parenthesis\n");
@@ -253,17 +293,19 @@ void statement (void)
 	BTNode* retp;
 	
 	if (match(END)) {
-		printf(">> ");
+		//printf(">> ");
 		Next();
 	} else {
 		retp = overall();
-		if (match(END)) {
+		if (match(END) || match(END_OF_INPUT)) {
 			//printf("%d\n", evaluateTree(retp));
+			static int id = 0;
 			printPrefix(retp);
 			printf("\n");
-			freeTree(retp);
+			root_set[id++] = retp;
+			//freeTree(retp);
 
-			printf(">> ");
+			//printf(">> ");
 			Next();
 		}
 	}
@@ -317,7 +359,95 @@ int setval(char *str, int val)
     return retval;
 }
 
-void assemble_tree(BTNode* now_root)
-{
 
+int OK_register (void )
+{
+	for (int i = 0; i < 8; ++i)
+		if (reg[i].can_use == OK) {
+			reg[i].can_use = NO;
+			return i;
+		}
+}
+
+int ID_index (char name[])
+{
+	for (int i = 0; i < sbcount; ++i) {
+		if (strcmp(name, table[i].name) == 0) {
+			return 4*i;
+		}
+	}
+}
+
+void Make_assem (BTNode *root, int type, int *id)
+{
+	int left_id = 0, right_id = 0;
+	if (root != NULL) {
+		switch (root->token) {
+		case ID:
+			*id = OK_register();
+			printf("MOV r%d [%d]\n", *id, ID_index(root->lexeme));
+			break;
+		case INT:
+			*id = OK_register();
+			printf("MOV r%d %d\n", *id, root->val);
+			break;
+		case ASSIGN:
+			Make_assem(root->right, RIGHT, &right_id);
+			printf ("MOV [%d] r%d\n", ID_index(root->left->lexeme), right_id);
+			reg[right_id].can_use = OK;
+			break;
+		case ADDSUB:
+		case MULDIV:
+		case AND:
+		case OR:
+		case XOR:
+			Make_assem(root->right, RIGHT, &right_id);
+			Make_assem(root->left, LEFT, &left_id);
+			if (strcmp(root->lexeme, "+") == 0) {
+				printf ("ADD r%d r%d\n", left_id, right_id);
+				*id = left_id;
+				reg[right_id].can_use = OK;
+				break;
+			}
+			else if (strcmp(root->lexeme, "-") == 0) {
+				printf ("SUB r%d r%d\n", left_id, right_id);
+				*id = left_id;
+				reg[right_id].can_use = OK;
+				break;
+			}
+			else if (strcmp(root->lexeme, "*") == 0) {
+				printf ("MUL r%d r%d\n", left_id, right_id);
+				*id = left_id;
+				reg[right_id].can_use = OK;
+				break;
+			}
+			else if (strcmp(root->lexeme, "/") == 0) {
+				printf ("DIV r%d r%d\n", left_id, right_id);
+				*id = left_id;
+				reg[right_id].can_use = OK;
+				break;
+			} 
+			else if (strcmp(root->lexeme, "&") == 0) {
+				printf ("AND r%d r%d\n", left_id, right_id);
+				*id = left_id;
+				reg[right_id].can_use = OK;
+				break;
+			} 
+			else if (strcmp(root->lexeme, "^") == 0) {
+				printf ("XOR r%d r%d\n", left_id, right_id);
+				*id = left_id;
+				reg[right_id].can_use = OK;
+				break;
+			} 
+			else if (strcmp(root->lexeme, "|") == 0) {
+				printf ("OR r%d r%d\n", left_id, right_id);
+				*id = left_id;
+				reg[right_id].can_use = OK;
+				break;
+			} 
+		default:
+			return;
+		}
+	}
+	return ;
 }

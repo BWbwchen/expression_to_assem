@@ -38,14 +38,15 @@ TokenSet getToken(void)
     } else if (c == '&' || c == '^' || c == '|') {
         lexeme[0] = c;
         lexeme[1] = '\0';
-        /*
+        
         if (c == '&') return AND;
         else if (c == '^') return XOR;
         else if (c == '|') return OR;
-        */
-       return AND_XOR_OR;    
-    } else if (c == '\n') {
+    
+        //return AND_XOR_OR;    
+    } else if (c == '\n' || c == '\0') {
         lexeme[0] = '\0';
+        //printf("END\n");
         return END;
     } else if (c == '=') {
         strcpy(lexeme, "=");
@@ -69,6 +70,7 @@ TokenSet getToken(void)
         lexeme[i] = '\0';
         return ID;
     } else if (c == EOF) {
+        //printf("EOF\n");
         return END_OF_INPUT;
     } else {
         return UNKNOWN;
