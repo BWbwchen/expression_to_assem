@@ -37,6 +37,8 @@ int total_root = 0;
 
 void statement(void);
 BTNode* overall(void);
+BTNode* xor(void);
+BTNode* and(void);
 BTNode* expr(void);
 BTNode* term(void);
 BTNode* factor(void);
@@ -79,7 +81,7 @@ int main ()
 		//printf("initial ; %s %d", table[i].name, table[i].val);
 	}
 	//initial reg
-	for (int i = 0; i < 7; ++i) {
+	for (int i = 0; i < 8; ++i) {
 		reg[i].data = 0;
 		reg[i].can_use = OK;
 	}
@@ -136,25 +138,43 @@ BTNode* makeNode(TokenSet tok, const char *lexe)
 }
 // deal of precendence
 // need to deal with & > ^ > |
-BTNode* overall (void)
+BTNode* overall (void) // OR
 {
 	BTNode *retp, *left;
-	retp = left = expr();
+	retp = left = xor();
 	while (match(OR)) { // tail recursion => while
 		retp = makeNode(OR, getLexeme());
 		Next();
-		retp->right = expr();
+		retp->right = xor();
 		retp->left = left;
 		left = retp;
 	}
+	if (match(UNKNOWN)) error(PRESENT_ERROR);
+	return retp;
+}
+
+BTNode* xor(void)
+{
+	BTNode *retp, *left;
+	retp = left = and();
 	while (match(XOR)) { // tail recursion => while
+		
 		retp = makeNode(XOR, getLexeme());
 		Next();
-		retp->right = expr();
+		retp->right = and();
 		retp->left = left;
 		left = retp;
 	}
+	if (match(UNKNOWN)) error(PRESENT_ERROR);
+	return retp;
+}
+
+BTNode* and(void)
+{
+	BTNode *retp, *left;
+	retp = left = expr();
 	while (match(AND)) { // tail recursion => while
+		
 		retp = makeNode(AND, getLexeme());
 		Next();
 		retp->right = expr();
@@ -163,7 +183,6 @@ BTNode* overall (void)
 	}
 	if (match(UNKNOWN)) error(PRESENT_ERROR);
 	return retp;
-
 }
 
 //  expr        := term expr_tail
@@ -362,11 +381,14 @@ int setval(char *str, int val)
 
 int OK_register (void )
 {
-	for (int i = 0; i < 8; ++i)
+	for (int i = 0; i < 8; ++i) {
 		if (reg[i].can_use == OK) {
 			reg[i].can_use = NO;
 			return i;
 		}
+	}
+	printf("No more register!\n");
+	exit(1);
 }
 
 int ID_index (char name[])
